@@ -1,0 +1,87 @@
+jira 
+   start|stop # /etc/init.d/jira
+   url: http://localhost:8080/
+   Account: roamin9:roamin9
+   Version: jira 4.4; suds 0.4
+
+   url_wsdl = 'http://localhost:8080/rpc/soap/jirasoapservice-v2?wsdl'
+
+   wsdl中描述的method的参数，只有参数类型，并没有参数名称。可以对照着java的API来进行参考：http://docs.atlassian.com/software/jira/docs/api/rpc-jira-plugin/latest/com/atlassian/jira/rpc/soap/JiraSoapService.html
+
+   Issue是jira的核心（代表了 什么事儿），围绕着Issue，会有一些默认的属性：
+(RemoteIssue){
+   affectsVersions[] = <empty>
+   assignee = "roamin9"
+   attachmentNames[] = <empty>
+   components[] = <empty>
+   created = 2011-08-15 13:13:50
+   customFieldValues[] = <empty>
+   description = "这是描述"
+   duedate = 2011-08-19 00:00:00
+   environment = "这是环境"
+   fixVersions[] = <empty>
+   id = "10000"
+   key = "TEST-1"
+   priority = "3"
+   project = "TEST"
+   reporter = "roamin9"
+   resolution = None
+   status = "1"
+   summary = "bug1"
+   type = "1"
+   updated = 2011-08-15 13:13:50
+   votes = 0
+}
+
+   Custom Field: 1,选择field type，默认有24种字段类型。目前使用的为URL Field，允许用户输入url字段。
+                 2,输入名称，影响到的issue type，影响到的项目。
+                 3,关联到screen上，有default screen，workflow screen等。
+
+1,获取wsdl文件，生成客户端
+from sudo.client import Client
+
+client = Client(url_wsdl)
+# 输出service提供的所有method
+print client
+
+# 调用service提供的method
+client.service.some_method()
+
+2,login and logout
+auth = client.login(username, passwd)
+# 在调用其他method时，需要传递auth对象
+filters = client.getFavouriteFilters(auth)
+print filters
+
+# 退出
+client.service.logout(auth)
+
+3,获取Issue
+# by Issue key
+issue_1 = client.service.getIssue(auth, 'TEST-1')
+
+# by Issue id, 默认是从10000开始
+issue_1 = client.service.getIssueById(auth, '10000')
+
+4,创建Issue。每个Issue必须的属性为：project(跟哪个项目相关)，type(事情的类型是什么)，summary(简单的描述)
+# 传递字典对象
+d = dict(project='TEST', type='1', summary='对事儿的描述')
+issue_2 = client.service.createIssue(auth, d)
+
+# 通过新建wsdl中描述的type类型，使用factory新建type的实例，生成一个RemoteIssue的实例，包含完整的属性
+new_issue = client.factory.create('ns0:RemoteIssue')
+new_issue.project = 'TEST'
+new_issue.type = '1'
+new_issue.summary = '对事儿的描述'
+issue_2 = client.service.createIssue(auth, new_issue)
+
+# 与创建Issue相关的method
+# 创建sub-task
+createIssueWithParent(str token, RemoteIssue rIssue, str parentIssueKey)
+createIssueWithParentWithSecurityLevel(str token, RemoteIssue rIssue, str parentIssueKey, int securityLevelId)
+createIssueWithSecurityLevel(str token, RemoteIssue rIssue, int securityLevelId)
+
+5,customFileds相关的操作
+# 获得所有可用的custom fields
+custom_fileds = client.service.getCustomFields(auth)
+
